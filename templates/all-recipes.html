@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your recipes</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/all-recipes.css') }}">
+</head>
+<body>
+    <div class="recipes-layout">
+        <!-- Left sidebar: scrollable recipe list -->
+        <aside id="recipes-sidebar" class="recipes-sidebar">
+            <h2>Your Recipes</h2>
+            <ul id="recipes-list" class="recipes-list">
+                <!-- Recipes loaded by JavaScript -->
+            </ul>
+        </aside>
+
+        <!-- Right side: recipe details -->
+        <main class="recipe-detail">
+            <div id="recipe-empty" class="empty-state">
+                <p>Select a recipe to view details</p>
+            </div>
+
+            <div id="recipe-content" class="recipe-content" style="display: none;">
+                <header class="recipe-header">
+                    <p id="type" class="meta"></p>
+                    <h1 id="title"></h1>
+                    <p class="meta-line">
+                        <span id="prep-time">Prep Time:</span>
+                        <span id="cook-time">Cook Time:</span>
+                        <span id="servings">Servings:</span>
+                    </p>
+                </header>
+
+                <section class="recipe-section">
+                    <h2>Ingredients</h2>
+                    <ul id="ingredients"></ul>
+                </section>
+
+                <section class="recipe-section">
+                    <h2>Instructions</h2>
+                    <ol id="instructions"></ol>
+                </section>
+
+                <footer class="notes">
+                    <h2>Additional Notes</h2>
+                    <ul id="additional-notes"></ul>
+                    <p id="source" class="muted"></p>
+                    <p id="language" class="muted"></p>
+                </footer>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{url_for('static', filename='js/all-recipes.js')}}"></script>
+</body>
+</html>

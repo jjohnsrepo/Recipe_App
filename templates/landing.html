@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome!</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to your recipe book!</h1>
+        <h2>Choose whether you want to find a recipe or upload</h2>
+        
+        <div class="button-group">
+            <button id="choose-recipe-btn" onclick="showChooseSection()">Choose Recipe</button>
+            <button id="upload-recipe-btn" onclick="showUploadSection()">Upload Recipe</button>
+        </div>
+
+        <!-- Existing recipe -->
+        <div class="choose-recipe content-section" id="choose-section">
+            <p>Your search or choose tools will go here.</p>
+        </div>
+
+        <!-- Upload new recipe -->
+        <div class="upload-recipe content-section" id="upload-section">
+            <div class="upload-recipe-options">
+                <button id="choose-photo-submit-section" onclick="choosePhotoSubmitSection()">Upload recipe with photo</button>
+                <button id="choose-link-submit-section" onclick="chooseLinkSubmitSection()">Submit a recipe URL</button>
+            </div>
+        
+            <div id="photo-submit-section" class="photo-submit-section">
+                <input type="file" id="photo" />
+                <button id="photo-submit">Upload</button>
+            </div>
+
+            <div id="link-submit-section" class="link-submit-section">
+                <input id="input-box" class="input-box" placeholder="Input link here">
+                <button id="url-submit" class="url-submit">Submit</button>
+            </div>
+        </div>
+    </div>
+    <script src="{{url_for('static', filename='js/landing.js')}}"></script>
+</body>
+</html>

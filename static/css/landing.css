@@ -1,0 +1,198 @@
+:root {
+	--bg: #f7f6f4;
+	--card: #ffffff;
+	--muted: #6b6b6b;
+	--line: #e9e7e4;
+	--primary: #111;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	min-height: 100vh;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+	background: var(--bg);
+	color: var(--primary);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 3rem 2rem;
+	line-height: 1.6;
+	-webkit-font-smoothing: antialiased;
+}
+
+.container {
+	width: 100%;
+	max-width: 600px;
+}
+
+h1 {
+	margin: 0 0 0.5rem 0;
+	font-size: 2rem;
+	font-weight: 600;
+	text-align: center;
+	letter-spacing: -0.5px;
+}
+
+h2 {
+	margin: 0 0 2.5rem 0;
+	font-size: 1rem;
+	font-weight: 400;
+	text-align: center;
+	color: var(--muted);
+}
+
+.button-group {
+	display: flex;
+	gap: 1rem;
+	margin-bottom: 3rem;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+button {
+	flex: 1;
+	min-width: 140px;
+	padding: 0.875rem 1.5rem;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--card);
+	color: var(--primary);
+	font-size: 0.95rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 200ms ease;
+	text-align: center;
+}
+
+button:hover {
+	border-color: var(--primary);
+	box-shadow: 0 4px 12px rgba(17, 17, 17, 0.08);
+}
+
+button:active {
+	transform: translateY(1px);
+}
+
+.content-section {
+	background: var(--card);
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	padding: 2rem;
+	animation: fadeIn 200ms ease;
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(-10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.choose-recipe,
+.upload-recipe {
+	display: none;
+}
+
+.choose-recipe.active,
+.upload-recipe.active {
+	display: block;
+}
+
+.choose-recipe p {
+	margin: 0;
+	color: var(--muted);
+	text-align: center;
+}
+
+.upload-recipe-options {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.upload-recipe-options button {
+	width: 100%;
+}
+
+.photo-submit-section,
+.link-submit-section {
+	display: none;
+	margin-top: 1.5rem;
+	padding-top: 1.5rem;
+	border-top: 1px solid var(--line);
+}
+
+.photo-submit-section.active,
+.link-submit-section.active {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+input {
+	width: 100%;
+	padding: 0.75rem 1rem;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	font-size: 0.95rem;
+	font-family: inherit;
+	transition: border-color 200ms ease;
+}
+
+input:focus {
+	outline: none;
+	border-color: var(--primary);
+}
+
+input[type="file"]::file-selector-button {
+	padding: 0.5rem 1rem;
+	margin-right: 0.75rem;
+	border: none;
+	border-radius: 4px;
+	background: var(--line);
+	color: var(--primary);
+	cursor: pointer;
+	font-weight: 500;
+	transition: background 200ms ease;
+}
+
+input[type="file"]::file-selector-button:hover {
+	background: #ddd;
+}
+
+@media (max-width: 520px) {
+	body {
+		padding: 2rem 1rem;
+	}
+
+	h1 {
+		font-size: 1.5rem;
+	}
+
+	h2 {
+		font-size: 0.9rem;
+		margin-bottom: 2rem;
+	}
+
+	.content-section {
+		padding: 1.5rem;
+	}
+
+	.button-group {
+		flex-direction: column;
+		margin-bottom: 2rem;
+	}
+
+	button {
+		min-width: unset;
+	}
+}

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yummy recipe</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div id="structure" class="structure">
+        <header class="recipe-header">
+            <p id="type" class="meta"></p>
+            <h1 id="title"></h1>
+            <p class="meta-line"><span id="prep-time">Prep Time:</span><span id="cook-time">Cook Time:</span><span id="servings"> Servings:</span></p>
+        </header>
+
+        <section class="recipe-section">
+            <h2>Ingredients</h2>
+            <ul id="ingredients"></ul>
+        </section>
+
+        <section class="recipe-section">
+            <h2>Instructions</h2>
+            <ol id="instructions"></ol>
+        </section>
+
+        <footer class="notes">
+            <h2>Additional Notes</h2>
+            <ul id="additional-notes"></ul>
+            <p id="source" class="muted"></p>
+            <p id="language" class="muted"></p>
+        </footer>
+    </div>
+
+    <script src="{{url_for('static', filename='js/recipe.js')}}"></script>
+</body>
+</html>
