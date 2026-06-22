@@ -16,9 +16,12 @@
             <button id="upload-recipe-btn" onclick="showUploadSection()">Upload Recipe</button>
         </div>
 
+        <p class="hint">Click <strong>Upload Recipe</strong> to add a link or photo, or <strong>Choose Recipe</strong> to browse saved recipes.</p>
+
         <!-- Existing recipe -->
         <div class="choose-recipe content-section" id="choose-section">
-            <p>Your search or choose tools will go here.</p>
+            <p>Browse and search your saved recipes.</p>
+            <a href="/all-recipes">Go to your recipe book</a>
         </div>
 
         <!-- Upload new recipe -->
@@ -29,7 +32,9 @@
             </div>
         
             <div id="photo-submit-section" class="photo-submit-section">
-                <input type="file" id="photo" />
+                <label class="file-label" for="photo">Recipe photo(s)</label>
+                <input type="file" id="photo" accept="image/*,.heic,.heif,.pdf,.txt" multiple />
+                <p class="file-hint">Select 1–2 photos (e.g. front and back of a recipe card).</p>
                 <button id="photo-submit">Upload</button>
             </div>
 

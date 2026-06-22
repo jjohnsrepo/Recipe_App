@@ -7,11 +7,23 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    <nav class="recipe-nav">
+        <a href="/">Upload another</a>
+        <a href="/all-recipes">View all recipes</a>
+    </nav>
+
     <div id="structure" class="structure">
         <header class="recipe-header">
-            <p id="type" class="meta"></p>
+            <div class="recipe-header-top">
+                <p id="type" class="meta"></p>
+                <button id="favorite-btn" class="favorite-btn" type="button" aria-label="Toggle favorite" style="display: none;">☆</button>
+            </div>
             <h1 id="title"></h1>
-            <p class="meta-line"><span id="prep-time">Prep Time:</span><span id="cook-time">Cook Time:</span><span id="servings"> Servings:</span></p>
+            <p class="meta-line">
+                <span>Prep Time: <span id="prep-time"></span></span>
+                <span>Cook Time: <span id="cook-time"></span></span>
+                <span>Servings: <span id="servings"></span></span>
+            </p>
         </header>
 
         <section class="recipe-section">
@@ -29,9 +41,10 @@
             <ul id="additional-notes"></ul>
             <p id="source" class="muted"></p>
             <p id="language" class="muted"></p>
+            <button id="delete-recipe-btn" class="delete-btn" type="button" style="display: none;">Delete recipe</button>
         </footer>
     </div>
 
-    <script src="{{url_for('static', filename='js/recipe.js')}}"></script>
+    <script src="{{ url_for('static', filename='js/recipe.js') }}"></script>
 </body>
 </html>

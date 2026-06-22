@@ -1,75 +1,40 @@
 from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
-from google import genai
-from google.genai.types import Tool, GenerateContentConfig
 from dotenv import load_dotenv
-import os, json
-from database import init_db, store_recipe, get_all_recipes
+import os
+import json
+import uuid
+from database import (
+    init_db,
+    store_recipe,
+    get_recipe_by_id,
+    search_recipes,
+    toggle_favorite,
+    delete_recipe,
+)
+from ai_extractor import extract_recipe_from_url, extract_recipe_from_file, extract_recipe_from_images
+from image_utils import is_image_file, prepare_image
 
 app = Flask(__name__)
 
 load_dotenv()
-API_KEY=os.getenv("API_KEY")
-model_id="gemini-3.1-flash-lite"
-client = genai.Client(api_key=API_KEY)
 
-recipe_structure = {
-    "type": "Dessert",  #ONLY use Dessert, Appetizer, Breakfast, Lunch, or Dinner
-    "title": "Chocolate Cake",
-    "prep_time": "5 minutes",
-    "cook_time": "30 minutes",
-    "servings": 4,
+UPLOAD_FOLDER = "./uploads"
+ALLOWED_EXTENSIONS = {"txt", "pdf", "png", "jpg", "jpeg", "gif", "heic", "heif", "webp"}
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_PHOTOS = 2
 
-    "ingredients": [
-        #A list of strings that list each ingredient needed for the recipe
-        "2 tbsp butter",
-        "4 pounds ham"
-    ],
+init_db()
 
-    "instructions": [
-        #A list of strings. A summmary of each instruction needed, line by line
-        "Preheat oven to 350F",
-        "Mix ingredients",
-        "Bake for 30 minutes"
-    ],
 
-    "additional_notes": [
-        #A list of strings that list any additional or helpful notes needed but not included in the instructions
-        "You can substitute x for y",
-    ],
-
-    "source": "", 
-    "language": "en"
-}
-
-def recipe_url(url):
-    tools = [
-    {"url_context": {}},
-    ]
-
-    response = client.models.generate_content(
-        model=model_id,
-        contents=f"""You are an expert culinary data extractor. Your task is to analyze the provided URL and extract recipe details into a strict JSON format.
-
-                    ### Instructions:
-                    1. If the provided URL is invalid, non-recipe content, or unreachable, return exactly: "Not a link"
-                    2. Output ONLY a valid JSON object. Do not include markdown code blocks (e.g., ```json), conversational text, or explanations.
-                    3. For the "instructions" field, maintain all critical steps but rewrite them to be concise, action-oriented, and easy to read.
-                    4. Ensure all numerical values (times, quantities) are extracted accurately. If a value is missing, return "N/A".
-
-                    ### Data Structure:
-                    {recipe_structure}
-
-                    ### URL to process:
-                    {url}
-            """,
-        config=GenerateContentConfig(tools=tools)
-    )
-
-    recipe_data = json.loads(response.text)
-
-    return recipe_data
-
+def save_and_respond(recipe: dict):
+    """Store recipe and return JSON with id."""
+    recipe_id = store_recipe(recipe)
+    if recipe_id is None:
+        return jsonify({"error": "Failed to save recipe to database."}), 500
+    recipe["id"] = recipe_id
+    recipe["is_favorite"] = False
+    return jsonify(recipe), 200
 
 
 @app.route("/")
@@ -81,89 +46,138 @@ def landing():
 def main():
     return render_template("index.html")
 
-@app.route('/recipe_link', methods=['POST'])
+
+@app.route("/recipe_link", methods=["POST"])
 def extract_url():
-    # Expects a JSON payload like: {"url": "https://example.com/recipe"}
     data = request.get_json()
-    if not data or 'url' not in data:
+    if not data or "url" not in data:
         return jsonify({"error": "Please provide a 'url' in the JSON body."}), 400
     try:
-        recipe = recipe_url(data['url'])
-        print(f"Response is this: {recipe}")
-        store_recipes(recipe) 
-        return jsonify(recipe), 200
+        recipe = extract_recipe_from_url(data["url"])
+        recipe["source"] = data["url"]
+        return save_and_respond(recipe)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except json.JSONDecodeError:
-        return jsonify({"error": "Failed to parse the response from Gemini as JSON."}), 500
+        return jsonify({"error": "Failed to parse the AI response as JSON."}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 def allowed_file(filename, allowed_extensions):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_extensions
 
 
-@app.route('/recipe_image', methods=['POST'])
+@app.route("/recipe_image", methods=["POST"])
 def extract_image():
-    UPLOAD_FOLDER = "./uploads"
-    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif','heic'}
+    uploads = [f for f in request.files.getlist("photos") if f.filename]
+    if not uploads and request.files.get("photo") and request.files["photo"].filename:
+        uploads = [request.files["photo"]]
 
-    # 1. Check if the file is actually in the request
-    if 'photo' not in request.files:
-        return "No file part", 400
-        
-    f = request.files['photo']
-    
-    # 2. If the user submits an empty form without selecting a file
-    if f.filename == '':
-        return "No selected file", 400
-        
-    # 3. Validate and save the file
-    if f and allowed_file(f.filename, ALLOWED_EXTENSIONS):
-        filename = secure_filename(f.filename)
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
-        f.save(filepath)
-        
-        # TODO: Pass `filepath` to your Gemini code here
-        recipe_file = client.files.upload(file=filepath)
-        response = client.models.generate_content(
-        model="gemini-3.1-flash-lite",
-        contents=[recipe_file,
-        f"""You are an expert culinary data extractor. Your task is to analyze the provided file and extract recipe details into a strict JSON format.
+    if not uploads:
+        return jsonify({"error": "No file selected."}), 400
 
-                    ### Instructions:
-                    1. If the provided image is invalid, non-recipe content, or unreachable, return exactly: "Not a valid image"
-                    2. Output ONLY a valid JSON object. Do not include markdown code blocks (e.g., ```json), conversational text, or explanations.
-                    3. For the "instructions" field, maintain all critical steps but rewrite them to be concise, action-oriented, and easy to read.
-                    4. Ensure all numerical values (times, quantities) are extracted accurately. If a value is missing, return "N/A".
+    if len(uploads) > MAX_PHOTOS:
+        return jsonify({"error": f"Please upload at most {MAX_PHOTOS} photos."}), 400
 
-                    ### Data Structure:
-                    {recipe_structure}
-            """]
-        )
-        print(response.text)
-        recipe = json.loads(response.text)
-        store_recipes(recipe)
-        
-        return jsonify(recipe), 200
-    
-    return "Invalid file type", 400
+    for f in uploads:
+        if not allowed_file(f.filename, ALLOWED_EXTENSIONS):
+            return jsonify({"error": "Invalid file type. Use an image, PDF, or text file."}), 400
+        f.seek(0, os.SEEK_END)
+        if f.tell() > MAX_UPLOAD_BYTES:
+            return jsonify({"error": "Each file must be 10 MB or smaller."}), 400
+        f.seek(0)
 
-@app.route('/all-recipes')
+    if len(uploads) > 1 and not all(is_image_file(f.filename) for f in uploads):
+        return jsonify({"error": "Multiple uploads are only supported for images."}), 400
+
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    saved_paths = []
+    api_paths = []
+    cleanup_paths = []
+
+    try:
+        for f in uploads:
+            original_name = secure_filename(f.filename) or "upload"
+            filename = f"{uuid.uuid4().hex}_{original_name}"
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            f.save(filepath)
+            saved_paths.append(filepath)
+
+            if is_image_file(filepath):
+                api_path, prepared_path = prepare_image(filepath)
+                api_paths.append(api_path)
+                if prepared_path:
+                    cleanup_paths.append(prepared_path)
+            else:
+                recipe = extract_recipe_from_file(filepath)
+                return save_and_respond(recipe)
+
+        recipe = extract_recipe_from_images(api_paths)
+        return save_and_respond(recipe)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except json.JSONDecodeError:
+        return jsonify({"error": "Failed to parse the AI response as JSON."}), 500
+    except Exception as e:
+        msg = str(e)
+        if any(word in msg.lower() for word in ("image", "vision", "multimodal")):
+            return jsonify({
+                "error": "Image upload failed. Try a vision-capable model in OPENROUTER_MODEL."
+            }), 400
+        return jsonify({"error": msg}), 500
+    finally:
+        for path in set(saved_paths + cleanup_paths):
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+
+
+@app.route("/all-recipes")
 def all_recipes():
     return render_template("all-recipes.html")
 
-@app.route('/api/recipes', methods=["GET"])
+
+@app.route("/api/recipes", methods=["GET"])
 def api_get_recipes():
-    recipes = get_all_recipes()
+    query = request.args.get("q", "").strip() or None
+    favorite_only = request.args.get("favorite") == "1"
+    recipe_type = request.args.get("type", "").strip() or None
+    recipes = search_recipes(query=query, favorite_only=favorite_only, recipe_type=recipe_type)
     return jsonify(recipes), 200
 
-def store_recipes(recipe: dict) -> bool:
-    return store_recipe(recipe)
 
-@app.route('/test')
+@app.route("/api/recipes/<int:recipe_id>", methods=["GET"])
+def api_get_recipe(recipe_id):
+    recipe = get_recipe_by_id(recipe_id)
+    if not recipe:
+        return jsonify({"error": "Recipe not found"}), 404
+    return jsonify(recipe), 200
+
+
+@app.route("/api/recipes/<int:recipe_id>/favorite", methods=["PATCH"])
+def api_toggle_favorite(recipe_id):
+    new_state = toggle_favorite(recipe_id)
+    if new_state is None:
+        return jsonify({"error": "Recipe not found"}), 404
+    return jsonify({"id": recipe_id, "is_favorite": new_state}), 200
+
+
+@app.route("/api/recipes/<int:recipe_id>", methods=["DELETE"])
+def api_delete_recipe(recipe_id):
+    if not delete_recipe(recipe_id):
+        return jsonify({"error": "Recipe not found"}), 404
+    return jsonify({"id": recipe_id, "deleted": True}), 200
+
+
+@app.route("/test")
 def test():
     return "Test good"
 
+
 if __name__ == "__main__":
-    init_db() 
-    app.run(debug=True, port=5000)
+    port = int(os.getenv("PORT", 5001))
+    print(f"Open http://127.0.0.1:{port} in your browser")
+    app.run(debug=True, port=port)

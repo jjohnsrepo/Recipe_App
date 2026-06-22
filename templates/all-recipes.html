@@ -8,15 +8,35 @@
 </head>
 <body>
     <div class="recipes-layout">
-        <!-- Left sidebar: scrollable recipe list -->
         <aside id="recipes-sidebar" class="recipes-sidebar">
-            <h2>Your Recipes</h2>
+            <div class="sidebar-header">
+                <h2>Your Recipes</h2>
+                <a href="/" class="nav-link">+ Upload</a>
+            </div>
+
+            <div class="sidebar-filters">
+                <input type="search" id="search-input" class="search-input" placeholder="Search recipes..." />
+                <div class="filter-row">
+                    <label class="filter-toggle">
+                        <input type="checkbox" id="favorites-only" />
+                        Favorites only
+                    </label>
+                    <select id="type-filter" class="type-filter">
+                        <option value="">All types</option>
+                        <option value="Breakfast">Breakfast</option>
+                        <option value="Lunch">Lunch</option>
+                        <option value="Dinner">Dinner</option>
+                        <option value="Appetizer">Appetizer</option>
+                        <option value="Dessert">Dessert</option>
+                    </select>
+                </div>
+            </div>
+
             <ul id="recipes-list" class="recipes-list">
                 <!-- Recipes loaded by JavaScript -->
             </ul>
         </aside>
 
-        <!-- Right side: recipe details -->
         <main class="recipe-detail">
             <div id="recipe-empty" class="empty-state">
                 <p>Select a recipe to view details</p>
@@ -24,12 +44,15 @@
 
             <div id="recipe-content" class="recipe-content" style="display: none;">
                 <header class="recipe-header">
-                    <p id="type" class="meta"></p>
+                    <div class="recipe-header-top">
+                        <p id="type" class="meta"></p>
+                        <button id="detail-favorite-btn" class="favorite-btn" type="button" aria-label="Toggle favorite">☆</button>
+                    </div>
                     <h1 id="title"></h1>
                     <p class="meta-line">
-                        <span id="prep-time">Prep Time:</span>
-                        <span id="cook-time">Cook Time:</span>
-                        <span id="servings">Servings:</span>
+                        <span>Prep Time: <span id="prep-time"></span></span>
+                        <span>Cook Time: <span id="cook-time"></span></span>
+                        <span>Servings: <span id="servings"></span></span>
                     </p>
                 </header>
 
@@ -48,11 +71,12 @@
                     <ul id="additional-notes"></ul>
                     <p id="source" class="muted"></p>
                     <p id="language" class="muted"></p>
+                    <button id="delete-recipe-btn" class="delete-btn" type="button">Delete recipe</button>
                 </footer>
             </div>
         </main>
     </div>
 
-    <script src="{{url_for('static', filename='js/all-recipes.js')}}"></script>
+    <script src="{{ url_for('static', filename='js/all-recipes.js') }}"></script>
 </body>
 </html>

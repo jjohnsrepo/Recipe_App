@@ -1,3 +1,7 @@
-google-genai
-python-dotenv
 flask
+python-dotenv
+openai
+requests
+pypdf
+Pillow
+pillow-heif
