@@ -5,7 +5,7 @@ import os
 import re
 
 from openai import OpenAI
-from url_fetcher import extract_json_ld_recipe, fetch_page_html, html_to_text
+from url_fetcher import extract_json_ld_recipe, fetch_page_html, fetch_page_markdown, html_to_text
 
 RECIPE_STRUCTURE = {
     "type": "Dessert",
@@ -80,15 +80,39 @@ def parse_recipe_response(text: str) -> dict:
 
 def _extract_with_messages(messages: list, online: bool = False) -> dict:
     client = _get_client()
-    response = client.chat.completions.create(
-        model=_get_model(online=online),
-        messages=messages,
-        temperature=0.2,
-    )
+    model = _get_model(online=online)
+    kwargs = {
+        "model": model,
+        "messages": messages,
+        "temperature": 0.2,
+    }
+
+    try:
+        response = client.chat.completions.create(
+            **kwargs,
+            response_format={"type": "json_object"},
+        )
+    except Exception:
+        response = client.chat.completions.create(**kwargs)
+
     content = response.choices[0].message.content
     if not content:
         raise ValueError("The AI model returned an empty response.")
     return parse_recipe_response(content)
+
+
+def _extract_recipe_from_page_text(url: str, page_text: str) -> dict:
+    messages = [
+        {"role": "system", "content": _system_prompt()},
+        {
+            "role": "user",
+            "content": (
+                f"Extract the recipe from this webpage content (source URL: {url}). "
+                f"Return valid JSON only.\n\n{page_text}"
+            ),
+        },
+    ]
+    return _extract_with_messages(messages)
 
 
 def _system_prompt() -> str:
@@ -110,26 +134,25 @@ def _extract_recipe_from_url_online(url: str) -> dict:
 
 
 def extract_recipe_from_url(url: str) -> dict:
+    page_text = None
+
     try:
         html = fetch_page_html(url)
+        structured = extract_json_ld_recipe(html)
+        if structured:
+            return structured
+        page_text = html_to_text(html)
     except ValueError as exc:
-        if "blocked automated access" in str(exc).lower():
-            return _extract_recipe_from_url_online(url)
-        raise
+        msg = str(exc).lower()
+        if "blocked automated access" in msg or "could not fetch url" in msg:
+            page_text = fetch_page_markdown(url)
+        else:
+            raise
 
-    structured = extract_json_ld_recipe(html)
-    if structured:
-        return structured
-
-    page_text = html_to_text(html)[:50000]
-    messages = [
-        {"role": "system", "content": _system_prompt()},
-        {
-            "role": "user",
-            "content": f"Extract the recipe from this webpage content (source URL: {url}):\n\n{page_text}",
-        },
-    ]
-    return _extract_with_messages(messages)
+    try:
+        return _extract_recipe_from_page_text(url, page_text)
+    except ValueError:
+        return _extract_recipe_from_url_online(url)
 
 
 def _file_to_data_url(filepath: str) -> str:

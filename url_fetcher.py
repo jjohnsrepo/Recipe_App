@@ -61,6 +61,22 @@ def _looks_like_blocked_page(html: str) -> bool:
     return False
 
 
+def fetch_page_markdown(url: str, max_chars: int = 50000) -> str:
+    """Fetch readable page content via Jina Reader when direct access is blocked."""
+    url = _validate_url(url)
+    jina_url = f"https://r.jina.ai/{url}"
+    resp = requests.get(
+        jina_url,
+        headers={"Accept": "text/markdown"},
+        timeout=60,
+    )
+    resp.raise_for_status()
+    text = resp.text.strip()
+    if not text or len(text) < 100:
+        raise ValueError("Could not fetch recipe content from this URL.")
+    return text[:max_chars]
+
+
 def fetch_page_html(url: str) -> str:
     """Fetch page HTML, trying browser-like clients before failing."""
     url = _validate_url(url)
