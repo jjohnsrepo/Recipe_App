@@ -3,10 +3,9 @@ import json
 import mimetypes
 import os
 import re
-from html.parser import HTMLParser
 
-import requests
 from openai import OpenAI
+from url_fetcher import extract_json_ld_recipe, fetch_page_html, html_to_text
 
 RECIPE_STRUCTURE = {
     "type": "Dessert",
@@ -36,32 +35,6 @@ You are an expert culinary data extractor. Extract recipe details into a strict 
 """
 
 
-class _TextExtractor(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self._parts = []
-        self._skip = False
-
-    def handle_starttag(self, tag, attrs):
-        if tag in ("script", "style", "nav", "footer", "header"):
-            self._skip = True
-
-    def handle_endtag(self, tag):
-        if tag in ("script", "style", "nav", "footer", "header"):
-            self._skip = False
-        elif tag in ("p", "div", "br", "li", "h1", "h2", "h3", "tr"):
-            self._parts.append("\n")
-
-    def handle_data(self, data):
-        if not self._skip:
-            text = data.strip()
-            if text:
-                self._parts.append(text + " ")
-
-    def get_text(self) -> str:
-        return re.sub(r"\n{3,}", "\n\n", "".join(self._parts).strip())
-
-
 def _get_client() -> OpenAI:
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
@@ -76,7 +49,12 @@ def _get_client() -> OpenAI:
     )
 
 
-def _get_model() -> str:
+def _get_model(online: bool = False) -> str:
+    if online:
+        return os.getenv(
+            "OPENROUTER_ONLINE_MODEL",
+            os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001") + ":online",
+        )
     return os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
 
 
@@ -100,10 +78,10 @@ def parse_recipe_response(text: str) -> dict:
     return json.loads(stripped)
 
 
-def _extract_with_messages(messages: list) -> dict:
+def _extract_with_messages(messages: list, online: bool = False) -> dict:
     client = _get_client()
     response = client.chat.completions.create(
-        model=_get_model(),
+        model=_get_model(online=online),
         messages=messages,
         temperature=0.2,
     )
@@ -117,21 +95,33 @@ def _system_prompt() -> str:
     return EXTRACTION_INSTRUCTIONS.format(structure=RECIPE_STRUCTURE)
 
 
-def fetch_url_text(url: str, max_chars: int = 50000) -> str:
-    headers = {"User-Agent": "Mozilla/5.0 (compatible; AuroraRecipeApp/1.0)"}
-    resp = requests.get(url, headers=headers, timeout=30)
-    resp.raise_for_status()
-
-    parser = _TextExtractor()
-    parser.feed(resp.text)
-    text = parser.get_text()
-    if not text:
-        raise ValueError("Not a link")
-    return text[:max_chars]
+def _extract_recipe_from_url_online(url: str) -> dict:
+    messages = [
+        {"role": "system", "content": _system_prompt()},
+        {
+            "role": "user",
+            "content": (
+                f"Visit this recipe URL and extract the full recipe: {url}\n"
+                "Return the structured recipe JSON only."
+            ),
+        },
+    ]
+    return _extract_with_messages(messages, online=True)
 
 
 def extract_recipe_from_url(url: str) -> dict:
-    page_text = fetch_url_text(url)
+    try:
+        html = fetch_page_html(url)
+    except ValueError as exc:
+        if "blocked automated access" in str(exc).lower():
+            return _extract_recipe_from_url_online(url)
+        raise
+
+    structured = extract_json_ld_recipe(html)
+    if structured:
+        return structured
+
+    page_text = html_to_text(html)[:50000]
     messages = [
         {"role": "system", "content": _system_prompt()},
         {
@@ -146,7 +136,14 @@ def _file_to_data_url(filepath: str) -> str:
     mime, _ = mimetypes.guess_type(filepath)
     if not mime:
         ext = filepath.rsplit(".", 1)[-1].lower()
-        mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif", "heic": "image/heic", "webp": "image/webp"}.get(ext, "application/octet-stream")
+        mime = {
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "png": "image/png",
+            "gif": "image/gif",
+            "heic": "image/heic",
+            "webp": "image/webp",
+        }.get(ext, "application/octet-stream")
 
     with open(filepath, "rb") as f:
         b64 = base64.standard_b64encode(f.read()).decode()
@@ -158,7 +155,7 @@ def _read_text_file(filepath: str) -> str:
         return f.read()
 
 
-def extract_recipe_from_images(filepaths: list[str]) -> dict:
+def extract_recipe_from_images(filepaths: list) -> dict:
     if not filepaths:
         raise ValueError("No images provided.")
 

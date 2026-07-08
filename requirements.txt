@@ -5,3 +5,4 @@ requests
 pypdf
 Pillow
 pillow-heif
+curl_cffi
