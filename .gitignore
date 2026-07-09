@@ -1,3 +1,6 @@
 .env
 venv/
 .venv
+database.db
+uploads/
+__pycache__/
