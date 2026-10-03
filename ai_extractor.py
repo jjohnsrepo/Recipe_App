@@ -186,8 +186,8 @@ def extract_recipe_from_images(filepaths: list) -> dict:
         prompt = "Extract the recipe from this image."
     else:
         prompt = (
-            "These images show the front and back of the same recipe. "
-            "Merge all information into one complete recipe."
+            "These images show parts of the same recipe. "
+            "Read them together and merge all information into one complete recipe."
         )
 
     content = [{"type": "text", "text": prompt}]

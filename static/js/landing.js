@@ -15,10 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Please choose at least one photo.');
         return;
       }
-      if (files.length > 2) {
-        alert('Please select at most 2 photos.');
-        return;
-      }
       for (const file of files) {
         if (file.size > 10 * 1024 * 1024) {
           alert(`"${file.name}" is too large. Maximum size is 10 MB per file.`);

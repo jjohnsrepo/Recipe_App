@@ -13,6 +13,7 @@
 body {
 	margin: 0;
 	min-height: 100vh;
+	min-height: 100dvh;
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
 	background: var(--bg);
 	color: var(--primary);
@@ -20,7 +21,9 @@ body {
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	padding: 3rem 2rem;
+	padding: 3rem 1.25rem;
+	padding-top: calc(3rem + env(safe-area-inset-top));
+	padding-bottom: calc(3rem + env(safe-area-inset-bottom));
 	line-height: 1.6;
 	-webkit-font-smoothing: antialiased;
 }
@@ -64,6 +67,7 @@ h2 {
 button {
 	flex: 1;
 	min-width: 140px;
+	min-height: 44px;
 	padding: 0.875rem 1.5rem;
 	border: 1px solid var(--line);
 	border-radius: 8px;
@@ -161,9 +165,14 @@ input {
 	padding: 0.75rem 1rem;
 	border: 1px solid var(--line);
 	border-radius: 6px;
-	font-size: 0.95rem;
+	font-size: 16px;
 	font-family: inherit;
 	transition: border-color 200ms ease;
+}
+
+input[type="file"] {
+	font-size: 0.9rem;
+	padding: 0.5rem 0;
 }
 
 input:focus {
@@ -187,9 +196,21 @@ input[type="file"]::file-selector-button:hover {
 	background: #ddd;
 }
 
+.choose-recipe a {
+	color: var(--primary);
+	font-weight: 500;
+	min-height: 44px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
 @media (max-width: 520px) {
 	body {
-		padding: 2rem 1rem;
+		padding: 1.5rem 1rem;
+		padding-top: calc(1.5rem + env(safe-area-inset-top));
+		padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+		justify-content: flex-start;
 	}
 
 	h1 {
@@ -198,19 +219,20 @@ input[type="file"]::file-selector-button:hover {
 
 	h2 {
 		font-size: 0.9rem;
-		margin-bottom: 2rem;
+		margin-bottom: 1.5rem;
 	}
 
 	.content-section {
-		padding: 1.5rem;
+		padding: 1.25rem;
 	}
 
 	.button-group {
 		flex-direction: column;
-		margin-bottom: 2rem;
+		margin-bottom: 1.25rem;
 	}
 
 	button {
 		min-width: unset;
+		width: 100%;
 	}
 }

@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f7f6f4">
     <title>Welcome!</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
 </head>
@@ -34,7 +35,7 @@
             <div id="photo-submit-section" class="photo-submit-section">
                 <label class="file-label" for="photo">Recipe photo(s)</label>
                 <input type="file" id="photo" accept="image/*,.heic,.heif,.pdf,.txt" multiple />
-                <p class="file-hint">Select 1–2 photos (e.g. front and back of a recipe card).</p>
+                <p class="file-hint">Select as many photos as needed for one recipe. Upload PDFs or text files one at a time.</p>
                 <button id="photo-submit">Upload</button>
             </div>
 

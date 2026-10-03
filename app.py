@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import json
 import uuid
+import sqlite3
 from database import (
     init_db,
     store_recipe,
@@ -11,6 +12,11 @@ from database import (
     search_recipes,
     toggle_favorite,
     delete_recipe,
+    list_folders,
+    get_folder_by_id,
+    create_folder,
+    add_recipe_to_folder,
+    remove_recipe_from_folder,
 )
 from ai_extractor import extract_recipe_from_url, extract_recipe_from_file, extract_recipe_from_images
 from image_utils import is_image_file, prepare_image
@@ -22,7 +28,6 @@ load_dotenv()
 UPLOAD_FOLDER = "./uploads"
 ALLOWED_EXTENSIONS = {"txt", "pdf", "png", "jpg", "jpeg", "gif", "heic", "heif", "webp"}
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
-MAX_PHOTOS = 2
 
 init_db()
 
@@ -34,6 +39,7 @@ def save_and_respond(recipe: dict):
         return jsonify({"error": "Failed to save recipe to database."}), 500
     recipe["id"] = recipe_id
     recipe["is_favorite"] = False
+    recipe["folder_ids"] = []
     return jsonify(recipe), 200
 
 
@@ -76,9 +82,6 @@ def extract_image():
 
     if not uploads:
         return jsonify({"error": "No file selected."}), 400
-
-    if len(uploads) > MAX_PHOTOS:
-        return jsonify({"error": f"Please upload at most {MAX_PHOTOS} photos."}), 400
 
     for f in uploads:
         if not allowed_file(f.filename, ALLOWED_EXTENSIONS):
@@ -145,8 +148,44 @@ def api_get_recipes():
     query = request.args.get("q", "").strip() or None
     favorite_only = request.args.get("favorite") == "1"
     recipe_type = request.args.get("type", "").strip() or None
-    recipes = search_recipes(query=query, favorite_only=favorite_only, recipe_type=recipe_type)
+    folder_id = request.args.get("folder")
+    if folder_id is not None:
+        if not folder_id.isdigit() or not get_folder_by_id(int(folder_id)):
+            return jsonify({"error": "Folder not found"}), 404
+        folder_id = int(folder_id)
+    recipes = search_recipes(query=query, favorite_only=favorite_only, recipe_type=recipe_type, folder_id=folder_id)
     return jsonify(recipes), 200
+
+
+@app.route("/api/folders", methods=["GET", "POST"])
+def api_folders():
+    if request.method == "GET":
+        return jsonify(list_folders()), 200
+
+    data = request.get_json(silent=True) or {}
+    name = data.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return jsonify({"error": "Enter a folder name."}), 400
+    name = name.strip()
+    if len(name) > 80:
+        return jsonify({"error": "Folder names must be 80 characters or fewer."}), 400
+    try:
+        return jsonify(create_folder(name)), 201
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "A folder with that name already exists."}), 409
+
+
+@app.route("/api/recipes/<int:recipe_id>/folders/<int:folder_id>", methods=["PUT", "DELETE"])
+def api_recipe_folder(recipe_id, folder_id):
+    if not get_recipe_by_id(recipe_id):
+        return jsonify({"error": "Recipe not found"}), 404
+    if not get_folder_by_id(folder_id):
+        return jsonify({"error": "Folder not found"}), 404
+    if request.method == "PUT":
+        add_recipe_to_folder(recipe_id, folder_id)
+    else:
+        remove_recipe_from_folder(recipe_id, folder_id)
+    return jsonify(get_recipe_by_id(recipe_id)), 200
 
 
 @app.route("/api/recipes/<int:recipe_id>", methods=["GET"])
