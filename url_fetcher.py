@@ -148,13 +148,15 @@ def _parse_iso_duration(value: str) -> str:
     return " ".join(parts) if parts else value
 
 
-def _normalize_type(raw: str) -> str:
-    allowed = {"Dessert", "Appetizer", "Breakfast", "Lunch", "Dinner"}
-    if not raw:
-        return "Dinner"
-    for option in allowed:
-        if option.lower() in raw.lower():
-            return option
+def _normalize_type(raw) -> str:
+    allowed = ("Dessert", "Appetizer", "Breakfast", "Lunch", "Dinner")
+    categories = raw if isinstance(raw, list) else [raw]
+    for category in categories:
+        if not isinstance(category, str):
+            continue
+        for option in allowed:
+            if option.lower() in category.lower():
+                return option
     return "Dinner"
 
 

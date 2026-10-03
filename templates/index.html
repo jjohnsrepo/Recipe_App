@@ -27,6 +27,17 @@
             </p>
         </header>
 
+        <section id="recipe-folders" class="recipe-folders" aria-labelledby="recipe-folders-title" hidden>
+            <h2 id="recipe-folders-title">Folders</h2>
+            <div id="recipe-folder-options" class="recipe-folder-options"></div>
+            <form id="create-folder-form" class="create-folder-form">
+                <label for="new-folder-name" class="visually-hidden">New folder name</label>
+                <input id="new-folder-name" type="text" maxlength="80" placeholder="New folder name" required>
+                <button type="submit">Create &amp; add</button>
+            </form>
+            <p id="recipe-folder-error" class="form-error" role="alert"></p>
+        </section>
+
         <section class="recipe-section">
             <h2>Ingredients</h2>
             <ul id="ingredients"></ul>

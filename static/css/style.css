@@ -55,6 +55,90 @@ body{
 	box-shadow: 0 8px 24px rgba(17, 17, 17, 0.06);
 }
 
+.recipe-folders {
+	margin-bottom: 1.5rem;
+	padding: 0.85rem 1rem;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+
+.recipe-folders[hidden] {
+	display: none;
+}
+
+.recipe-folders h2 {
+	border: 0;
+	padding: 0;
+	margin-bottom: 0.6rem;
+	font-size: 1rem;
+}
+
+.recipe-folder-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1rem;
+}
+
+.recipe-folder-options label {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: 0.9rem;
+	cursor: pointer;
+}
+
+.create-folder-form {
+	display: flex;
+	gap: 0.4rem;
+	margin-top: 0.75rem;
+}
+
+.create-folder-form input {
+	min-width: 0;
+	flex: 1;
+	padding: 0.55rem;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	font: inherit;
+	font-size: 16px;
+}
+
+.create-folder-form button {
+	min-height: 44px;
+	padding: 0.45rem 0.75rem;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	background: var(--card);
+	font: inherit;
+	cursor: pointer;
+}
+
+.create-folder-form button:disabled {
+	cursor: wait;
+}
+
+.form-error {
+	color: #a22;
+	font-size: 0.8rem;
+	margin: 0.35rem 0 0;
+}
+
+.form-error:empty {
+	display: none;
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
 .recipe-header-top {
 	display: flex;
 	align-items: center;
@@ -209,5 +293,13 @@ p{ margin:0 0 1rem }
 @media (max-width: 420px) {
 	h1, .recipe-header h1 {
 		font-size: 1.2rem;
+	}
+
+	.create-folder-form {
+		flex-wrap: wrap;
+	}
+
+	.create-folder-form button {
+		width: 100%;
 	}
 }
