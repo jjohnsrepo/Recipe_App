@@ -9,6 +9,7 @@ from database import (
     init_db,
     store_recipe,
     get_recipe_by_id,
+    update_recipe,
     search_recipes,
     toggle_favorite,
     delete_recipe,
@@ -20,6 +21,7 @@ from database import (
 )
 from ai_extractor import extract_recipe_from_url, extract_recipe_from_file, extract_recipe_from_images
 from image_utils import is_image_file, prepare_image
+from shopping_list import generate_shopping_list
 
 app = Flask(__name__)
 
@@ -157,6 +159,39 @@ def api_get_recipes():
     return jsonify(recipes), 200
 
 
+@app.route("/api/shopping-list", methods=["POST"])
+def api_shopping_list():
+    data = request.get_json(silent=True)
+    recipe_ids = data.get("recipe_ids") if isinstance(data, dict) else None
+    if not isinstance(recipe_ids, list) or not recipe_ids or any(
+        isinstance(recipe_id, bool) or not isinstance(recipe_id, int) or recipe_id <= 0
+        for recipe_id in recipe_ids
+    ):
+        return jsonify({"error": "Select at least one valid recipe."}), 400
+
+    recipe_ids = list(dict.fromkeys(recipe_ids))
+    lines = []
+    for recipe_id in recipe_ids:
+        recipe = get_recipe_by_id(recipe_id)
+        if recipe is None:
+            return jsonify({"error": "A selected recipe no longer exists."}), 404
+        lines.extend(
+            item.strip() for item in recipe["ingredients"]
+            if isinstance(item, str) and item.strip()
+        )
+
+    try:
+        shopping_list = generate_shopping_list(lines)
+    except Exception:
+        app.logger.exception("Shopping list generation failed")
+        return jsonify({"error": "Could not make the shopping list right now. Please try again."}), 502
+
+    return jsonify({
+        "shopping_list": shopping_list,
+        "recipe_count": len(recipe_ids),
+    }), 200
+
+
 @app.route("/api/folders", methods=["GET", "POST"])
 def api_folders():
     if request.method == "GET":
@@ -188,8 +223,45 @@ def api_recipe_folder(recipe_id, folder_id):
     return jsonify(get_recipe_by_id(recipe_id)), 200
 
 
-@app.route("/api/recipes/<int:recipe_id>", methods=["GET"])
+@app.route("/api/recipes/<int:recipe_id>", methods=["GET", "PATCH"])
 def api_get_recipe(recipe_id):
+    if request.method == "PATCH":
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"error": "Send a JSON recipe object."}), 400
+
+        text_limits = {
+            "type": 80, "title": 200, "prep_time": 80, "cook_time": 80,
+            "source": 2000, "language": 30,
+        }
+        edited = {}
+        for field, limit in text_limits.items():
+            value = data.get(field)
+            if not isinstance(value, str) or len(value.strip()) > limit:
+                return jsonify({"error": f"{field.replace('_', ' ').title()} must be text of at most {limit} characters."}), 400
+            edited[field] = value.strip()
+        if not edited["title"] or not edited["type"]:
+            return jsonify({"error": "Title and type are required."}), 400
+
+        servings = data.get("servings")
+        if isinstance(servings, bool) or not (servings is None or
+                (isinstance(servings, int) and servings > 0) or servings == "N/A"):
+            return jsonify({"error": "Servings must be a positive whole number or N/A."}), 400
+        edited["servings"] = servings
+
+        for field in ("ingredients", "instructions", "additional_notes"):
+            value = data.get(field)
+            if not isinstance(value, list) or len(value) > 200 or any(
+                not isinstance(item, str) or not item.strip() or len(item) > 2000
+                for item in value
+            ):
+                return jsonify({"error": f"{field.replace('_', ' ').title()} must be a list of nonempty text items."}), 400
+            edited[field] = [item.strip() for item in value]
+
+        if not update_recipe(recipe_id, edited):
+            return jsonify({"error": "Recipe not found"}), 404
+        return jsonify(get_recipe_by_id(recipe_id)), 200
+
     recipe = get_recipe_by_id(recipe_id)
     if not recipe:
         return jsonify({"error": "Recipe not found"}), 404

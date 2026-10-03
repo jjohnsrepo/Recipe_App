@@ -1,10 +1,28 @@
 document.addEventListener('DOMContentLoaded', () => {
-  populateRecipeFromStorage();
+  recipeEditor = createRecipeEditor(document.getElementById('structure'), renderRecipe);
+  const recipeId = new URLSearchParams(window.location.search).get('recipe_id');
+  if (recipeId && /^\d+$/.test(recipeId)) {
+    loadRecipe(Number(recipeId));
+  } else {
+    populateRecipeFromStorage();
+  }
 });
 
 let currentRecipeId = null;
 let currentRecipeFolderIds = [];
 let folders = [];
+let recipeEditor;
+let recipeActionsInitialized = false;
+
+async function loadRecipe(recipeId) {
+  try {
+    const response = await fetch(`/api/recipes/${recipeId}`);
+    if (!response.ok) throw new Error('Recipe could not be loaded.');
+    renderRecipe(await response.json());
+  } catch {
+    document.getElementById('title').textContent = 'Recipe could not be loaded.';
+  }
+}
 
 function populateRecipeFromStorage() {
   const raw = window.sessionStorage.getItem('recipe');
@@ -17,7 +35,13 @@ function populateRecipeFromStorage() {
     return;
   }
 
+  renderRecipe(recipe);
+  window.sessionStorage.removeItem('recipe');
+}
+
+function renderRecipe(recipe) {
   currentRecipeId = recipe.id || null;
+  recipeEditor.setRecipe(recipe);
 
   const scalarFields = {
     type: 'type',
@@ -44,27 +68,27 @@ function populateRecipeFromStorage() {
   populateList('additional-notes', recipe.additional_notes);
 
   const sourceEl = document.getElementById('source');
-  if (recipe.source) {
-    sourceEl.innerHTML = `Source: <a href="${escapeHtml(recipe.source)}" target="_blank" rel="noopener">${escapeHtml(recipe.source)}</a>`;
-  }
+  renderSource(sourceEl, recipe.source);
 
   if (currentRecipeId) {
     const favBtn = document.getElementById('favorite-btn');
     favBtn.style.display = 'inline-block';
     updateFavoriteButton(recipe.is_favorite);
-    favBtn.addEventListener('click', toggleFavorite);
-
     const deleteBtn = document.getElementById('delete-recipe-btn');
     deleteBtn.style.display = 'inline-block';
-    deleteBtn.addEventListener('click', () => deleteRecipe(recipe.title));
 
     currentRecipeFolderIds = recipe.folder_ids || [];
     document.getElementById('recipe-folders').hidden = false;
-    document.getElementById('create-folder-form').addEventListener('submit', createAndAddFolder);
-    loadFolders();
+    if (!recipeActionsInitialized) {
+      favBtn.addEventListener('click', toggleFavorite);
+      deleteBtn.addEventListener('click', () => deleteRecipe(document.getElementById('title').textContent));
+      document.getElementById('create-folder-form').addEventListener('submit', createAndAddFolder);
+      loadFolders();
+      recipeActionsInitialized = true;
+    } else {
+      renderRecipeFolders();
+    }
   }
-
-  window.sessionStorage.removeItem('recipe');
 }
 
 async function loadFolders() {
@@ -197,4 +221,20 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function renderSource(element, source) {
+  element.replaceChildren();
+  if (!source) return;
+  element.append('Source: ');
+  if (/^https?:\/\//i.test(source)) {
+    const link = document.createElement('a');
+    link.href = source;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = source;
+    element.append(link);
+  } else {
+    element.append(source);
+  }
 }

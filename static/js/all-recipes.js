@@ -14,6 +14,16 @@ const newFolderName = document.getElementById('new-folder-name');
 const folderFormError = document.getElementById('folder-form-error');
 const recipeFolderOptions = document.getElementById('recipe-folder-options');
 const recipeFolderError = document.getElementById('recipe-folder-error');
+const selectedCount = document.getElementById('selected-count');
+const clearSelectionBtn = document.getElementById('clear-selection');
+const makeShoppingListBtn = document.getElementById('make-shopping-list');
+const shoppingListError = document.getElementById('shopping-list-error');
+const shoppingListView = document.getElementById('shopping-list-view');
+const shoppingListContent = document.getElementById('shopping-list-content');
+const shoppingListSummary = document.getElementById('shopping-list-summary');
+const copyIngredientsBtn = document.getElementById('copy-ingredients');
+const copyStatus = document.getElementById('copy-status');
+const mobileLayoutQuery = window.matchMedia('(max-width: 768px)');
 
 let selectedRecipeId = null;
 let selectedRecipeTitle = '';
@@ -22,17 +32,39 @@ let selectedFolderId = null;
 let folders = [];
 let selectedRecipeFolderIds = [];
 let recipeRequestId = 0;
+const selectedRecipes = new Map();
+let shoppingListText = '';
+let shoppingListLoading = false;
+let recipeEditor;
 
 function isMobileLayout() {
-  return window.matchMedia('(max-width: 768px)').matches;
+  return mobileLayoutQuery.matches;
+}
+
+function syncResponsiveView() {
+  if (mobileLayoutQuery.matches && (!shoppingListView.hidden || recipeContent.style.display === 'block')) {
+    recipesLayout?.classList.add('show-detail');
+  } else if (!mobileLayoutQuery.matches) {
+    recipesLayout?.classList.remove('show-detail');
+  }
 }
 
 function showRecipeListView() {
   recipesLayout?.classList.remove('show-detail');
+  if (!shoppingListView.hidden) {
+    shoppingListView.hidden = true;
+    recipeContent.style.display = selectedRecipeId ? 'block' : 'none';
+    recipeEmpty.style.display = selectedRecipeId ? 'none' : 'block';
+  }
   document.title = 'Your recipes';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  recipeEditor = createRecipeEditor(recipeContent, (saved) => {
+    if (selectedRecipeId === saved.id) showRecipeDetail(saved);
+    if (selectedRecipes.has(saved.id)) selectedRecipes.set(saved.id, saved);
+    fetchAndDisplayRecipes().catch(() => {});
+  });
   fetchFolders();
   fetchAndDisplayRecipes();
 
@@ -54,7 +86,96 @@ document.addEventListener('DOMContentLoaded', () => {
 
   backToListBtn?.addEventListener('click', showRecipeListView);
   createFolderForm.addEventListener('submit', createFolder);
+  clearSelectionBtn.addEventListener('click', clearSelection);
+  makeShoppingListBtn.addEventListener('click', showShoppingList);
+  copyIngredientsBtn.addEventListener('click', copyIngredients);
+  mobileLayoutQuery.addEventListener('change', syncResponsiveView);
 });
+
+function updateSelectionActions() {
+  const count = selectedRecipes.size;
+  selectedCount.textContent = `${count} selected`;
+  clearSelectionBtn.disabled = count === 0;
+  makeShoppingListBtn.disabled = count === 0 || shoppingListLoading;
+}
+
+function clearSelection() {
+  selectedRecipes.clear();
+  recipesList.querySelectorAll('.list-select-label input').forEach((checkbox) => {
+    checkbox.checked = false;
+  });
+  updateSelectionActions();
+}
+
+async function showShoppingList() {
+  if (selectedRecipes.size === 0 || shoppingListLoading) return;
+  const recipeIds = [...selectedRecipes.keys()];
+  shoppingListLoading = true;
+  updateSelectionActions();
+  makeShoppingListBtn.textContent = 'Combining ingredients…';
+  shoppingListError.textContent = '';
+
+  try {
+    const response = await fetch('/api/shopping-list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipe_ids: recipeIds }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not make the shopping list.');
+    if (typeof result.shopping_list !== 'string') throw new Error('Could not read the shopping list.');
+
+    shoppingListText = result.shopping_list;
+    shoppingListContent.textContent = shoppingListText || 'No ingredients listed.';
+    shoppingListSummary.textContent = `From ${result.recipe_count} ${result.recipe_count === 1 ? 'recipe' : 'recipes'}`;
+    copyStatus.textContent = '';
+    copyIngredientsBtn.disabled = shoppingListText.length === 0;
+
+    recipeContent.style.display = 'none';
+    recipeEmpty.style.display = 'none';
+    shoppingListView.hidden = false;
+    document.querySelector('.recipe-detail').scrollTop = 0;
+    if (isMobileLayout()) recipesLayout?.classList.add('show-detail');
+    document.title = 'Shopping list';
+  } catch (error) {
+    shoppingListError.textContent = error.message || 'Could not make the shopping list.';
+  } finally {
+    shoppingListLoading = false;
+    makeShoppingListBtn.textContent = 'Make shopping list';
+    updateSelectionActions();
+  }
+}
+
+function copyTextFallback(value) {
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    return document.execCommand('copy');
+  } catch {
+    return false;
+  } finally {
+    textarea.remove();
+  }
+}
+
+async function copyIngredients() {
+  if (!shoppingListText) return;
+  let copied = false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(shoppingListText);
+      copied = true;
+    }
+  } catch {
+    // Clipboard API can be unavailable on a plain HTTP LAN address.
+  }
+  if (!copied) copied = copyTextFallback(shoppingListText);
+  copyStatus.textContent = copied ? 'Ingredients copied.' : 'Could not copy. Select the ingredients and copy them manually.';
+}
 
 async function fetchFolders() {
   const response = await fetch('/api/folders');
@@ -98,6 +219,7 @@ function selectFolder(folderId) {
   renderFolders();
   recipeContent.style.display = 'none';
   recipeEmpty.style.display = 'block';
+  shoppingListView.hidden = true;
   selectedRecipeId = null;
   selectedRecipeTitle = '';
   selectedRecipeFolderIds = [];
@@ -201,9 +323,26 @@ async function fetchAndDisplayRecipes() {
   }
 
   data.forEach((recipe) => {
+    if (selectedRecipes.has(recipe.id)) selectedRecipes.set(recipe.id, recipe);
     const li = document.createElement('li');
     li.dataset.recipeId = recipe.id;
     if (recipe.id === selectedRecipeId) li.classList.add('active');
+
+    const selectLabel = document.createElement('label');
+    selectLabel.className = 'list-select-label';
+    const selectCheckbox = document.createElement('input');
+    selectCheckbox.type = 'checkbox';
+    selectCheckbox.setAttribute('aria-label', `Select ${recipe.title} for shopping list`);
+    selectCheckbox.checked = selectedRecipes.has(recipe.id);
+    selectCheckbox.addEventListener('change', () => {
+      if (selectCheckbox.checked) {
+        selectedRecipes.set(recipe.id, recipe);
+      } else {
+        selectedRecipes.delete(recipe.id);
+      }
+      updateSelectionActions();
+    });
+    selectLabel.appendChild(selectCheckbox);
 
     const starBtn = document.createElement('button');
     starBtn.className = 'list-favorite-btn';
@@ -225,6 +364,7 @@ async function fetchAndDisplayRecipes() {
     `;
     selectBtn.addEventListener('click', () => showRecipeDetail(recipe));
 
+    li.appendChild(selectLabel);
     li.appendChild(starBtn);
     li.appendChild(selectBtn);
     recipesList.appendChild(li);
@@ -245,6 +385,7 @@ async function toggleFavorite(recipeId) {
 }
 
 function showRecipeDetail(recipe) {
+  recipeEditor.setRecipe(recipe);
   selectedRecipeId = recipe.id;
   selectedRecipeTitle = recipe.title || 'this recipe';
   selectedRecipeFolderIds = recipe.folder_ids || [];
@@ -257,6 +398,7 @@ function showRecipeDetail(recipe) {
 
   recipeEmpty.style.display = 'none';
   recipeContent.style.display = 'block';
+  shoppingListView.hidden = true;
 
   document.querySelector('.recipe-detail').scrollTop = 0;
 
@@ -271,11 +413,7 @@ function showRecipeDetail(recipe) {
   populateList('additional-notes', recipe.additional_notes);
 
   const sourceEl = document.getElementById('source');
-  if (recipe.source) {
-    sourceEl.innerHTML = `Source: <a href="${escapeHtml(recipe.source)}" target="_blank" rel="noopener">${escapeHtml(recipe.source)}</a>`;
-  } else {
-    sourceEl.textContent = '';
-  }
+  renderSource(sourceEl, recipe.source);
 
   const langEl = document.getElementById('language');
   langEl.textContent = recipe.language ? `Language: ${recipe.language}` : '';
@@ -299,6 +437,8 @@ async function deleteRecipe(recipeId, title) {
 
   selectedRecipeId = null;
   selectedRecipeTitle = '';
+  selectedRecipes.delete(recipeId);
+  updateSelectionActions();
   recipeContent.style.display = 'none';
   recipeEmpty.style.display = 'block';
   showRecipeListView();
@@ -325,4 +465,20 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function renderSource(element, source) {
+  element.replaceChildren();
+  if (!source) return;
+  element.append('Source: ');
+  if (/^https?:\/\//i.test(source)) {
+    const link = document.createElement('a');
+    link.href = source;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = source;
+    element.append(link);
+  } else {
+    element.append(source);
+  }
 }

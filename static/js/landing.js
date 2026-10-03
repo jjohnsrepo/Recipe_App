@@ -53,8 +53,7 @@ async function sendLink(link, button) {
       return;
     }
 
-    window.sessionStorage.setItem('recipe', JSON.stringify(data));
-    window.location.href = '/main';
+    window.location.href = `/main?recipe_id=${data.id}`;
   } catch {
     alert('Something went wrong. Please try again.');
   } finally {
@@ -86,8 +85,7 @@ async function sendPhotos(files, button) {
       return;
     }
 
-    window.sessionStorage.setItem('recipe', JSON.stringify(data));
-    window.location.href = '/main';
+    window.location.href = `/main?recipe_id=${data.id}`;
   } catch {
     alert('Something went wrong. Please try again.');
   } finally {

@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#f7f6f4">
     <title>Your recipes</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/all-recipes.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/recipe-editor.css') }}">
 </head>
 <body>
     <div class="recipes-layout">
@@ -44,6 +45,13 @@
                 </div>
             </div>
 
+            <div class="selection-actions">
+                <span id="selected-count">0 selected</span>
+                <button id="clear-selection" type="button" disabled>Clear</button>
+                <button id="make-shopping-list" type="button" disabled>Make shopping list</button>
+            </div>
+            <p id="shopping-list-error" class="form-error shopping-list-error" role="alert"></p>
+
             <ul id="recipes-list" class="recipes-list">
                 <!-- Recipes loaded by JavaScript -->
             </ul>
@@ -57,6 +65,7 @@
             </div>
 
             <div id="recipe-content" class="recipe-content" style="display: none;">
+                <div id="recipe-editor"></div>
                 <header class="recipe-header">
                     <div class="recipe-header-top">
                         <p id="type" class="meta"></p>
@@ -94,9 +103,22 @@
                     <button id="delete-recipe-btn" class="delete-btn" type="button">Delete recipe</button>
                 </footer>
             </div>
+
+            <section id="shopping-list-view" class="shopping-list-view" aria-labelledby="shopping-list-title" hidden>
+                <div class="shopping-list-header">
+                    <div>
+                        <h1 id="shopping-list-title">Shopping list</h1>
+                        <p id="shopping-list-summary" class="muted"></p>
+                    </div>
+                    <button id="copy-ingredients" type="button">Copy ingredients</button>
+                </div>
+                <p id="copy-status" class="copy-status" role="status"></p>
+                <div id="shopping-list-content"></div>
+            </section>
         </main>
     </div>
 
+    <script src="{{ url_for('static', filename='js/recipe-editor.js') }}"></script>
     <script src="{{ url_for('static', filename='js/all-recipes.js') }}"></script>
 </body>
 </html>

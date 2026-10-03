@@ -123,6 +123,28 @@ def get_recipe_by_id(recipe_id: int) -> Optional[Dict]:
         return None
 
 
+def update_recipe(recipe_id: int, recipe: dict) -> bool:
+    """Replace editable recipe fields. Return False when the recipe does not exist."""
+    conn = sqlite3.connect(DATABASE_FILE)
+    try:
+        cursor = conn.execute("""
+            UPDATE recipes SET
+                type = ?, title = ?, prep_time = ?, cook_time = ?, servings = ?,
+                ingredients = ?, instructions = ?, additional_notes = ?,
+                source = ?, language = ?
+            WHERE id = ?
+        """, (
+            recipe['type'], recipe['title'], recipe['prep_time'], recipe['cook_time'],
+            recipe['servings'], json.dumps(recipe['ingredients']),
+            json.dumps(recipe['instructions']), json.dumps(recipe['additional_notes']),
+            recipe['source'], recipe['language'], recipe_id,
+        ))
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
 def search_recipes(
     query: Optional[str] = None,
     favorite_only: bool = False,
